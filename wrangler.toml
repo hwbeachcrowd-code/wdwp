@@ -1,0 +1,7 @@
+name = "my-netdisk"
+pages_build_output_dir = "public"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "netdisk-db"
+database_id = "netdisk-db"
