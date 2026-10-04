@@ -1,0 +1,8 @@
+{
+  "name": "my-netdisk",
+  "version": "1.0.0",
+  "type": "module",
+  "dependencies": {
+    "lanzou": "^0.1.1"
+  }
+}
