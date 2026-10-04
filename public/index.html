@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>我的网盘</title>
+<style>
+  :root {
+    --bg: #0f1115; --panel: #171a21; --panel-2: #1f232c; --border: #2a2f3a;
+    --text: #e6e8ec; --muted: #8b93a1; --accent: #4f8cff; --accent-hover: #3a7bf0;
+    --danger: #e5484d; --radius: 10px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background: var(--bg); color: var(--text); min-height: 100vh; -webkit-font-smoothing: antialiased;
+  }
+  button { font-family: inherit; cursor: pointer; border: none; border-radius: var(--radius); font-size: 14px; transition: background .15s, opacity .15s; }
+  input {
+    font-family: inherit; font-size: 14px; color: var(--text); background: var(--panel-2);
+    border: 1px solid var(--border); border-radius: var(--radius); padding: 11px 14px;
+    width: 100%; outline: none; transition: border-color .15s;
+  }
+  input:focus { border-color: var(--accent); }
+  .hidden { display: none !important; }
+
+  #login-view { display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 20px; }
+  .login-card { background: var(--panel); border: 1px solid var(--border); border-radius: 16px; padding: 40px 32px; width: 100%; max-width: 380px; text-align: center; }
+  .login-card .logo { font-size: 40px; margin-bottom: 12px; }
+  .login-card h1 { font-size: 20px; font-weight: 600; margin-bottom: 6px; }
+  .login-card p { color: var(--muted); font-size: 13px; margin-bottom: 26px; }
+  .login-card input { text-align: center; letter-spacing: 4px; font-size: 18px; margin-bottom: 14px; }
+  .login-card button { width: 100%; background: var(--accent); color: #fff; padding: 12px; font-size: 15px; font-weight: 500; }
+  .login-card button:hover { background: var(--accent-hover); }
+  .login-error { color: var(--danger); font-size: 13px; margin-top: 12px; min-height: 18px; }
+
+  #app-view { max-width: 960px; margin: 0 auto; padding: 28px 20px 60px; }
+  .app-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
+  .app-header h1 { font-size: 22px; font-weight: 600; }
+  .app-header .sub { color: var(--muted); font-size: 13px; margin-top: 4px; }
+  .logout-btn { background: transparent; color: var(--muted); border: 1px solid var(--border); padding: 8px 16px; }
+  .logout-btn:hover { color: var(--text); border-color: var(--muted); }
+
+  .upload-zone { border: 2px dashed var(--border); border-radius: 14px; padding: 32px; text-align: center; margin-bottom: 28px; }
+  .upload-zone .icon { font-size: 32px; margin-bottom: 10px; }
+  .upload-zone .hint { color: var(--muted); font-size: 13px; margin-bottom: 16px; }
+  .btn-primary { background: var(--accent); color: #fff; padding: 10px 22px; }
+  .btn-primary:hover { background: var(--accent-hover); }
+
+  .progress-wrap { margin-top: 18px; }
+  .progress-bar { height: 6px; background: var(--panel-2); border-radius: 3px; overflow: hidden; }
+  .progress-bar span { display: block; height: 100%; width: 0%; background: var(--accent); transition: width .2s; }
+  .progress-label { font-size: 12px; color: var(--muted); margin-top: 8px; text-align: center; }
+
+  .list-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+  .list-header h2 { font-size: 15px; font-weight: 600; }
+  .list-header .count { color: var(--muted); font-size: 13px; }
+  .file-list { display: flex; flex-direction: column; gap: 8px; }
+  .file-item { display: flex; align-items: center; gap: 14px; background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; }
+  .file-item:hover { border-color: #3a4150; }
+  .file-icon { width: 38px; height: 38px; flex-shrink: 0; border-radius: 8px; background: var(--panel-2); display: flex; align-items: center; justify-content: center; font-size: 18px; }
+  .file-info { flex: 1; min-width: 0; }
+  .file-name { font-size: 14px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .file-meta { font-size: 12px; color: var(--muted); margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .file-actions { display: flex; gap: 6px; flex-shrink: 0; }
+  .icon-btn { background: var(--panel-2); color: var(--muted); width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; font-size: 15px; border-radius: 8px; }
+  .icon-btn:hover { color: var(--text); background: #2a2f3a; }
+  .icon-btn.danger:hover { color: #fff; background: var(--danger); }
+  .empty { text-align: center; padding: 48px 20px; color: var(--muted); font-size: 14px; }
+  .empty .icon { font-size: 36px; margin-bottom: 12px; opacity: .5; }
+
+  .modal-mask { position: fixed; inset: 0; background: rgba(0,0,0,.6); display: flex; align-items: center; justify-content: center; padding: 20px; z-index: 100; }
+  .modal { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 24px; width: 100%; max-width: 420px; }
+  .modal h3 { font-size: 16px; margin-bottom: 18px; }
+  .modal label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 6px; margin-top: 14px; }
+  .modal label:first-of-type { margin-top: 0; }
+  .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 24px; }
+  .btn-secondary { background: var(--panel-2); color: var(--text); padding: 10px 18px; }
+  .btn-secondary:hover { background: #2a2f3a; }
+  .btn-danger { background: var(--danger); color: #fff; padding: 10px 18px; }
+  .btn-danger:hover { opacity: .9; }
+
+  .preview-modal { max-width: 90vw; max-height: 90vh; width: auto; padding: 16px; display: flex; flex-direction: column; }
+  .preview-modal img, .preview-modal video { max-width: 100%; max-height: 75vh; border-radius: 8px; object-fit: contain; }
+  .preview-modal iframe { width: 80vw; height: 75vh; border: none; border-radius: 8px; background: #fff; }
+  .preview-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; font-size: 14px; }
+  .preview-header .name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-right: 12px; }
+
+  #toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(80px); background: var(--panel-2); border: 1px solid var(--border); color: var(--text); padding: 12px 20px; border-radius: var(--radius); font-size: 14px; opacity: 0; transition: transform .25s, opacity .25s; z-index: 200; pointer-events: none; }
+  #toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+</style>
+</head>
+<body>
+
+<div id="login-view">
+  <div class="login-card">
+    <div class="logo">🔒</div>
+    <h1>我的网盘</h1>
+    <p>请输入访问密码</p>
+    <input type="password" id="password-input" placeholder="••••" maxlength="32" autocomplete="current-password">
+    <button id="login-btn">解锁</button>
+    <div class="login-error" id="login-error"></div>
+  </div>
+</div>
+
+<div id="app-view" class="hidden">
+  <div class="app-header">
+    <div>
+      <h1>我的网盘</h1>
+      <div class="sub" id="storage-info">共 0 个文件</div>
+    </div>
+    <button class="logout-btn" id="logout-btn">退出</button>
+  </div>
+
+  <div class="upload-zone">
+    <div class="icon">📤</div>
+    <div class="hint">粘贴蓝奏云分享链接，自动解析并添加到列表</div>
+    <input type="text" id="lanzou-url" placeholder="https://wwbpe.lanzouq.com/xxxxx" style="margin-bottom:10px">
+    <input type="text" id="lanzou-pwd" placeholder="提取码（没有就留空）" style="margin-bottom:14px">
+    <button class="btn-primary" id="add-file-btn">解析并添加</button>
+    <div class="progress-wrap hidden" id="progress-wrap">
+      <div class="progress-bar"><span id="progress-fill"></span></div>
+      <div class="progress-label" id="progress-label">解析中…</div>
+    </div>
+  </div>
+
+  <div class="list-header">
+    <h2>全部文件</h2>
+    <span class="count" id="file-count">0 个</span>
+  </div>
+  <div class="file-list" id="file-list"></div>
+</div>
+
+<div class="modal-mask hidden" id="rename-modal">
+  <div class="modal">
+    <h3>重命名 / 修改链接</h3>
+    <label>显示名称（仅本站显示）</label>
+    <input type="text" id="rename-name-input">
+    <label>自定义链接别名（可选）</label>
+    <input type="text" id="rename-alias-input" placeholder="例如 my-photo">
+    <div class="modal-actions">
+      <button class="btn-secondary" id="rename-cancel">取消</button>
+      <button class="btn-primary" id="rename-confirm">保存</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-mask hidden" id="delete-modal">
+  <div class="modal">
+    <h3>确认删除</h3>
+    <p style="color:var(--muted);font-size:14px;line-height:1.6;">
+      确定要从列表移除 <strong id="delete-file-name" style="color:var(--text)"></strong> 吗？此操作只删除本站记录，不影响蓝奏云上的文件。
+    </p>
+    <div class="modal-actions">
+      <button class="btn-secondary" id="delete-cancel">取消</button>
+      <button class="btn-danger" id="delete-confirm">删除</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-mask hidden" id="preview-modal">
+  <div class="modal preview-modal">
+    <div class="preview-header">
+      <span class="name" id="preview-name"></span>
+      <button class="icon-btn" id="preview-close">✕</button>
+    </div>
+    <div id="preview-content"></div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+let files = [];
+const $ = id => document.getElementById(id);
+
+function formatSize(bytes) {
+  if (!bytes) return "未知大小";
+  if (bytes < 1024) return bytes + " B";
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
+  if (bytes < 1024 * 1024 * 1024) return (bytes / 1024 / 1024).toFixed(1) + " MB";
+  return (bytes / 1024 / 1024 / 1024).toFixed(2) + " GB";
+}
+function formatTime(ts) {
+  const d = new Date(ts); const pad = n => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+function fileIcon(type, name) {
+  if (type && type.startsWith("image/")) return "🖼️";
+  if (type && type.startsWith("video/")) return "🎬";
+  if (type && type.startsWith("audio/")) return "🎵";
+  if (type && type.includes("pdf")) return "📕";
+  if (name.endsWith(".zip") || name.endsWith(".rar") || name.endsWith(".7z")) return "🗜️";
+  if (name.endsWith(".apk")) return "🤖";
+  if (name.endsWith(".doc") || name.endsWith(".docx")) return "📘";
+  if (name.endsWith(".xls") || name.endsWith(".xlsx")) return "📗";
+  if (name.endsWith(".ppt") || name.endsWith(".pptx")) return "📙";
+  return "📦";
+}
+let toastTimer;
+function showToast(msg) {
+  const t = $("toast"); t.textContent = msg; t.classList.add("show");
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove("show"), 2200);
+}
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+}
+
+$("login-btn").addEventListener("click", doLogin);
+$("password-input").addEventListener("keydown", e => { if (e.key === "Enter") doLogin(); });
+
+async function doLogin() {
+  const pwd = $("password-input").value;
+  if (!pwd) { $("login-error").textContent = "请输入密码"; return; }
+
+  const res = await fetch("/api/login", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ password: pwd })
+  });
+
+  if (res.ok) {
+    $("login-view").classList.add("hidden");
+    $("app-view").classList.remove("hidden");
+    await loadFiles();
+  } else {
+    $("login-error").textContent = "密码错误";
+    $("password-input").value = "";
+  }
+}
+
+$("logout-btn").addEventListener("click", async () => {
+  await fetch("/api/logout", { method: "POST" });
+  $("app-view").classList.add("hidden");
+  $("login-view").classList.remove("hidden");
+  $("password-input").value = "";
+  $("login-error").textContent = "";
+});
+
+async function loadFiles() {
+  const res = await fetch("/api/files");
+  if (res.status === 401) { location.reload(); return; }
+  files = await res.json();
+  renderFiles();
+}
+
+function renderFiles() {
+  const list = $("file-list");
+  $("file-count").textContent = files.length + " 个";
+  $("storage-info").textContent = "共 " + files.length + " 个文件";
+
+  if (files.length === 0) {
+    list.innerHTML = `<div class="empty"><div class="icon">📂</div>还没有文件，粘贴蓝奏云链接添加一个</div>`;
+    return;
+  }
+
+  list.innerHTML = files.map(f => `
+    <div class="file-item" data-id="${f.id}">
+      <div class="file-icon">${fileIcon(f.type, f.name)}</div>
+      <div class="file-info">
+        <div class="file-name">${escapeHtml(f.name)}</div>
+        <div class="file-meta">
+          ${formatSize(f.size)} · ${formatTime(f.created_at)}
+          ${f.alias && f.alias !== f.id ? " · /" + escapeHtml(f.alias) : ""}
+        </div>
+      </div>
+      <div class="file-actions">
+        <button class="icon-btn" data-action="preview" title="预览/下载">👁️</button>
+        <button class="icon-btn" data-action="copy" title="复制链接">🔗</button>
+        <button class="icon-btn" data-action="rename" title="重命名">✏️</button>
+        <button class="icon-btn danger" data-action="delete" title="删除">🗑️</button>
+      </div>
+    </div>
+  `).join("");
+
+  list.querySelectorAll(".file-item").forEach(item => {
+    const id = item.dataset.id;
+    item.querySelectorAll("[data-action]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const f = files.find(x => x.id === id);
+        if (!f) return;
+        const action = btn.dataset.action;
+        if (action === "preview") openPreview(f);
+        if (action === "copy") copyLink(f);
+        if (action === "rename") openRename(f);
+        if (action === "delete") openDelete(f);
+      });
+    });
+  });
+}
+
+$("add-file-btn").addEventListener("click", async () => {
+  const url = $("lanzou-url").value.trim();
+  const pwd = $("lanzou-pwd").value.trim();
+  if (!url) { showToast("请输入蓝奏云分享链接"); return; }
+
+  $("progress-wrap").classList.remove("hidden");
+  $("progress-label").textContent = "正在解析链接…";
+  $("progress-fill").style.width = "30%";
+
+  try {
+    const res = await fetch("/api/files", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ lanzouUrl: url, lanzouPwd: pwd })
+    });
+    $("progress-fill").style.width = "80%";
+    const data = await res.json();
+
+    if (!res.ok) {
+      showToast(data.error || "解析失败");
+      return;
+    }
+    $("progress-fill").style.width = "100%";
+    $("progress-label").textContent = "添加成功";
+    await loadFiles();
+    showToast("已添加：" + data.name);
+    $("lanzou-url").value = "";
+    $("lanzou-pwd").value = "";
+  } catch (e) {
+    showToast("请求出错：" + e.message);
+  } finally {
+    setTimeout(() => {
+      $("progress-wrap").classList.add("hidden");
+      $("progress-fill").style.width = "0%";
+    }, 600);
+  }
+});
+
+function openPreview(f) {
+  $("preview-name").textContent = f.name;
+  const content = $("preview-content");
+  const url = "/api/file/" + (f.alias || f.id);
+  content.innerHTML = `
+    <div style="padding:40px;text-align:center;color:var(--muted);font-size:14px;">
+      点击下方按钮开始下载（每次都会重新获取最新直链）<br><br>
+      <a href="${url}" style="color:var(--accent);font-size:15px;">⬇️ 下载 ${escapeHtml(f.name)}</a>
+    </div>`;
+  $("preview-modal").classList.remove("hidden");
+}
+$("preview-close").addEventListener("click", () => {
+  $("preview-modal").classList.add("hidden");
+  $("preview-content").innerHTML = "";
+});
+$("preview-modal").addEventListener("click", e => {
+  if (e.target === $("preview-modal")) {
+    $("preview-modal").classList.add("hidden");
+    $("preview-content").innerHTML = "";
+  }
+});
+
+function copyLink(f) {
+  const link = location.origin + "/api/file/" + (f.alias || f.id);
+  navigator.clipboard.writeText(link)
+    .then(() => showToast("链接已复制：" + link))
+    .catch(() => showToast("复制失败：" + link));
+}
+
+let renameTarget = null;
+function openRename(f) {
+  renameTarget = f;
+  $("rename-name-input").value = f.name;
+  $("rename-alias-input").value = (f.alias && f.alias !== f.id) ? f.alias : "";
+  $("rename-modal").classList.remove("hidden");
+}
+$("rename-cancel").addEventListener("click", () => {
+  $("rename-modal").classList.add("hidden");
+  renameTarget = null;
+});
+$("rename-confirm").addEventListener("click", async () => {
+  if (!renameTarget) return;
+  const newName = $("rename-name-input").value.trim();
+  const newAlias = $("rename-alias-input").value.trim();
+  if (!newName) { showToast("文件名不能为空"); return; }
+
+  const res = await fetch(`/api/file/${renameTarget.id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name: newName, alias: newAlias || renameTarget.id })
+  });
+  if (res.ok) {
+    await loadFiles();
+    showToast("已保存（仅修改本站显示）");
+  } else {
+    const data = await res.json();
+    showToast(data.error || "保存失败");
+  }
+  $("rename-modal").classList.add("hidden");
+  renameTarget = null;
+});
+
+let deleteTarget = null;
+function openDelete(f) {
+  deleteTarget = f;
+  $("delete-file-name").textContent = f.name;
+  $("delete-modal").classList.remove("hidden");
+}
+$("delete-cancel").addEventListener("click", () => {
+  $("delete-modal").classList.add("hidden");
+  deleteTarget = null;
+});
+$("delete-confirm").addEventListener("click", async () => {
+  if (!deleteTarget) return;
+  const res = await fetch(`/api/file/${deleteTarget.id}`, { method: "DELETE" });
+  if (res.ok) {
+    await loadFiles();
+    showToast("已从列表移除");
+  } else {
+    showToast("删除失败");
+  }
+  $("delete-modal").classList.add("hidden");
+  deleteTarget = null;
+});
+</script>
+</body>
+</html>
