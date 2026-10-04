@@ -181,10 +181,17 @@ function escapeHtml(s) {
 }
 
 async function loadFiles() {
-  const res = await fetch("/api/files");
-  if (res.status === 401) { showToast("未授权，请检查后端"); return; }
-  files = await res.json();
-  renderFiles();
+  try {
+    const res = await fetch("/api/files");
+    if (!res.ok) {
+      showToast("加载失败：" + res.status);
+      return;
+    }
+    files = await res.json();
+    renderFiles();
+  } catch (e) {
+    showToast("请求出错：" + e.message);
+  }
 }
 
 function renderFiles() {
@@ -355,8 +362,7 @@ $("delete-confirm").addEventListener("click", async () => {
   deleteTarget = null;
 });
 
-// 页面打开直接加载列表
 loadFiles();
 </script>
 </body>
-</html>
+      </html>
