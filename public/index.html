@@ -24,22 +24,10 @@
   input:focus { border-color: var(--accent); }
   .hidden { display: none !important; }
 
-  #login-view { display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 20px; }
-  .login-card { background: var(--panel); border: 1px solid var(--border); border-radius: 16px; padding: 40px 32px; width: 100%; max-width: 380px; text-align: center; }
-  .login-card .logo { font-size: 40px; margin-bottom: 12px; }
-  .login-card h1 { font-size: 20px; font-weight: 600; margin-bottom: 6px; }
-  .login-card p { color: var(--muted); font-size: 13px; margin-bottom: 26px; }
-  .login-card input { text-align: center; letter-spacing: 4px; font-size: 18px; margin-bottom: 14px; }
-  .login-card button { width: 100%; background: var(--accent); color: #fff; padding: 12px; font-size: 15px; font-weight: 500; }
-  .login-card button:hover { background: var(--accent-hover); }
-  .login-error { color: var(--danger); font-size: 13px; margin-top: 12px; min-height: 18px; }
-
   #app-view { max-width: 960px; margin: 0 auto; padding: 28px 20px 60px; }
   .app-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
   .app-header h1 { font-size: 22px; font-weight: 600; }
   .app-header .sub { color: var(--muted); font-size: 13px; margin-top: 4px; }
-  .logout-btn { background: transparent; color: var(--muted); border: 1px solid var(--border); padding: 8px 16px; }
-  .logout-btn:hover { color: var(--text); border-color: var(--muted); }
 
   .upload-zone { border: 2px dashed var(--border); border-radius: 14px; padding: 32px; text-align: center; margin-bottom: 28px; }
   .upload-zone .icon { font-size: 32px; margin-bottom: 10px; }
@@ -81,8 +69,6 @@
   .btn-danger:hover { opacity: .9; }
 
   .preview-modal { max-width: 90vw; max-height: 90vh; width: auto; padding: 16px; display: flex; flex-direction: column; }
-  .preview-modal img, .preview-modal video { max-width: 100%; max-height: 75vh; border-radius: 8px; object-fit: contain; }
-  .preview-modal iframe { width: 80vw; height: 75vh; border: none; border-radius: 8px; background: #fff; }
   .preview-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; font-size: 14px; }
   .preview-header .name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-right: 12px; }
 
@@ -92,24 +78,12 @@
 </head>
 <body>
 
-<div id="login-view">
-  <div class="login-card">
-    <div class="logo">🔒</div>
-    <h1>我的网盘</h1>
-    <p>请输入访问密码</p>
-    <input type="password" id="password-input" placeholder="••••" maxlength="32" autocomplete="current-password">
-    <button id="login-btn">解锁</button>
-    <div class="login-error" id="login-error"></div>
-  </div>
-</div>
-
-<div id="app-view" class="hidden">
+<div id="app-view">
   <div class="app-header">
     <div>
       <h1>我的网盘</h1>
       <div class="sub" id="storage-info">共 0 个文件</div>
     </div>
-    <button class="logout-btn" id="logout-btn">退出</button>
   </div>
 
   <div class="upload-zone">
@@ -206,40 +180,9 @@ function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 }
 
-$("login-btn").addEventListener("click", doLogin);
-$("password-input").addEventListener("keydown", e => { if (e.key === "Enter") doLogin(); });
-
-async function doLogin() {
-  const pwd = $("password-input").value;
-  if (!pwd) { $("login-error").textContent = "请输入密码"; return; }
-
-  const res = await fetch("/api/login", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ password: pwd })
-  });
-
-  if (res.ok) {
-    $("login-view").classList.add("hidden");
-    $("app-view").classList.remove("hidden");
-    await loadFiles();
-  } else {
-    $("login-error").textContent = "密码错误";
-    $("password-input").value = "";
-  }
-}
-
-$("logout-btn").addEventListener("click", async () => {
-  await fetch("/api/logout", { method: "POST" });
-  $("app-view").classList.add("hidden");
-  $("login-view").classList.remove("hidden");
-  $("password-input").value = "";
-  $("login-error").textContent = "";
-});
-
 async function loadFiles() {
   const res = await fetch("/api/files");
-  if (res.status === 401) { location.reload(); return; }
+  if (res.status === 401) { showToast("未授权，请检查后端"); return; }
   files = await res.json();
   renderFiles();
 }
@@ -411,6 +354,9 @@ $("delete-confirm").addEventListener("click", async () => {
   $("delete-modal").classList.add("hidden");
   deleteTarget = null;
 });
+
+// 页面打开直接加载列表
+loadFiles();
 </script>
 </body>
 </html>
